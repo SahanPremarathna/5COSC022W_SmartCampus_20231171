@@ -8,7 +8,7 @@
 
 ## 1. API Design Overview
 
-This project implements a RESTful API for managing rooms, sensors, and sensor readings across a smart university campus. The system is built entirely with JAX-RS (Jersey) and uses in-memory data structures : no database is used.
+This project implements a RESTful API for managing rooms, sensors, and sensor readings across a smart university campus. The system is built entirely with JAX-RS (Jersey) and uses in-memory data structures, no database is used.
 
 ### Resource Hierarchy
 
@@ -197,7 +197,7 @@ curl -X POST "$BASE/sensors/2/readings" \
 
 By default, JAX-RS creates a brand new instance of each resource class for every incoming HTTP request. This is called per-request scope. It means no state is shared between requests through instance fields of the resource class itself, which avoids many concurrency bugs.
 
-However, because multiple requests can arrive simultaneously, they all share the same in-memory data store. In this implementation, `DataStore` is a singleton : a single shared instance accessed by all resource instances. To prevent race conditions, the `DataStore` uses `ConcurrentHashMap` for its core collections, which allows safe concurrent reads. Write operations such as `createRoom`, `deleteRoom`, `createSensor`, and `addReading` are marked `synchronized`, ensuring only one thread can modify the data at a time. Without this synchronization, two simultaneous POST requests could generate the same ID or corrupt the sensor readings list, leading to data loss or inconsistent state.
+However, because multiple requests can arrive simultaneously, they all share the same in-memory data store. In this implementation, `DataStore` is a singleton, a single shared instance accessed by all resource instances. To prevent race conditions, the `DataStore` uses `ConcurrentHashMap` for its core collections, which allows safe concurrent reads. Write operations such as `createRoom`, `deleteRoom`, `createSensor`, and `addReading` are marked `synchronized`, ensuring only one thread can modify the data at a time. Without this synchronization, two simultaneous POST requests could generate the same ID or corrupt the sensor readings list, leading to data loss or inconsistent state.
 
 ---
 
@@ -213,7 +213,7 @@ This benefits client developers because they do not need to hardcode URLs or rel
 
 Returning only IDs in a list response forces the client to make a separate GET request for each room to retrieve its details. For a campus with hundreds of rooms, this creates a large number of round trips, significantly increasing network overhead and latency. This pattern is sometimes called the N+1 problem.
 
-Returning full room objects in the list response costs more bandwidth per response but gives the client everything it needs in a single call. For most use cases : such as displaying a room directory : this is the better trade-off. If bandwidth is genuinely a concern for very large collections, pagination or sparse fieldsets can be introduced, but for this system the full object approach is appropriate.
+Returning full room objects in the list response costs more bandwidth per response but gives the client everything it needs in a single call. For most use cases, such as displaying a room directory, this is the better trade-off. If bandwidth is genuinely a concern for very large collections, pagination or sparse fieldsets can be introduced, but for this system the full object approach is appropriate.
 
 ---
 
@@ -221,13 +221,13 @@ Returning full room objects in the list response costs more bandwidth per respon
 
 Yes, the DELETE operation is idempotent in this implementation. Idempotency means that making the same request multiple times produces the same result as making it once.
 
-If a client sends `DELETE /rooms/5` and the room exists and has no sensors, it is deleted and the server returns 204 No Content. If the same request is sent again, the room no longer exists and the server returns 404 Not Found. The outcome is the same in terms of system state : room 5 does not exist after either call. The HTTP status code differs between the first and second call, but the resource state is identical, which satisfies the definition of idempotency. This is important because clients may retry DELETE requests due to network timeouts without needing to worry about accidentally deleting something twice.
+If a client sends `DELETE /rooms/5` and the room exists and has no sensors, it is deleted and the server returns 204 No Content. If the same request is sent again, the room no longer exists and the server returns 404 Not Found. The outcome is the same in terms of system state, room 5 does not exist after either call. The HTTP status code differs between the first and second call, but the resource state is identical, which satisfies the definition of idempotency. This is important because clients may retry DELETE requests due to network timeouts without needing to worry about accidentally deleting something twice.
 
 ---
 
 ### Part 3.1 : @Consumes and Content-Type Mismatch
 
-The `@Consumes(MediaType.APPLICATION_JSON)` annotation tells JAX-RS that the POST endpoint only accepts requests with a `Content-Type: application/json` header. If a client sends a request with `Content-Type: text/plain` or `Content-Type: application/xml`, JAX-RS cannot find a matching resource method and immediately returns a `415 Unsupported Media Type` response. The method body is never executed : JAX-RS handles the rejection before the request reaches the application code. This protects the API from unexpected input formats and makes the contract between client and server explicit.
+The `@Consumes(MediaType.APPLICATION_JSON)` annotation tells JAX-RS that the POST endpoint only accepts requests with a `Content-Type: application/json` header. If a client sends a request with `Content-Type: text/plain` or `Content-Type: application/xml`, JAX-RS cannot find a matching resource method and immediately returns a `415 Unsupported Media Type` response. The method body is never executed, JAX-RS handles the rejection before the request reaches the application code. This protects the API from unexpected input formats and makes the contract between client and server explicit.
 
 ---
 
@@ -237,7 +237,7 @@ Using a query parameter (`GET /sensors?type=CO2`) is superior to embedding the f
 
 Firstly, the path `/api/v1/sensors` represents the sensors collection as a resource. A query parameter narrows that collection without implying a different resource exists. `/sensors/type/CO2` implies `type` is a sub-resource of sensors, which is semantically incorrect.
 
-Secondly, query parameters are optional by nature. `GET /sensors` returns all sensors, `GET /sensors?type=CO2` returns a filtered subset : this is natural and composable. Path segments are mandatory, which makes it awkward to express "no filter".
+Secondly, query parameters are optional by nature. `GET /sensors` returns all sensors, `GET /sensors?type=CO2` returns a filtered subset, this is natural and composable. Path segments are mandatory, which makes it awkward to express "no filter".
 
 Thirdly, multiple filters can be combined easily with query parameters (`?type=CO2&status=ACTIVE`), whereas encoding multiple filters in the path quickly becomes unreadable and non-standard.
 
@@ -247,7 +247,7 @@ Thirdly, multiple filters can be combined easily with query parameters (`?type=C
 
 The sub-resource locator pattern delegates responsibility for a nested URL path to a dedicated class. In this implementation, `SensorResource` handles `/sensors` and routes `/{sensorId}/readings` to `SensorReadingResource`, which handles all reading-related operations independently.
 
-The key benefit is separation of concerns. Each class has one clear responsibility. `SensorResource` manages the sensor collection; `SensorReadingResource` manages reading history for a specific sensor. If both were combined into one class, that class would need to handle sensor creation, sensor filtering, reading history, and reading creation : growing into an unmanageable controller.
+The key benefit is separation of concerns. Each class has one clear responsibility. `SensorResource` manages the sensor collection; `SensorReadingResource` manages reading history for a specific sensor. If both were combined into one class, that class would need to handle sensor creation, sensor filtering, reading history, and reading creation, growing into an unmanageable controller.
 
 It also allows the locator to perform validation before delegating. In this implementation, the locator verifies the sensor exists and returns 404 if not, before `SensorReadingResource` is even instantiated. This means the sub-resource class can assume its parent always exists and focus purely on its own logic. In large APIs with deep nesting, this pattern keeps each layer focused, testable, and independently maintainable.
 
@@ -255,9 +255,9 @@ It also allows the locator to perform validation before delegating. In this impl
 
 ### Part 5.2 : Why HTTP 422 is More Accurate than 404
 
-A 404 Not Found means the requested URL does not exist on the server. When a client posts a new sensor with a `roomId` that does not exist, the URL `/api/v1/sensors` is perfectly valid : the problem is not with the endpoint but with the content of the request body.
+A 404 Not Found means the requested URL does not exist on the server. When a client posts a new sensor with a `roomId` that does not exist, the URL `/api/v1/sensors` is perfectly valid, the problem is not with the endpoint but with the content of the request body.
 
-HTTP 422 Unprocessable Entity means the server understood the request format and parsed the JSON correctly, but the semantic content of the payload is invalid : in this case, it references a room that does not exist. This is a more precise and honest status code because it tells the client exactly what went wrong: the data was structurally correct but logically invalid. A 404 would mislead the client into thinking it called the wrong URL, making debugging unnecessarily difficult.
+HTTP 422 Unprocessable Entity means the server understood the request format and parsed the JSON correctly, but the semantic content of the payload is invalid, in this case it references a room that does not exist. This is a more precise and honest status code because it tells the client exactly what went wrong: the data was structurally correct but logically invalid. A 404 would mislead the client into thinking it called the wrong URL, making debugging unnecessarily difficult.
 
 ---
 
@@ -265,10 +265,10 @@ HTTP 422 Unprocessable Entity means the server understood the request format and
 
 Exposing a Java stack trace in an API response gives an attacker a detailed map of the application's internals. Specifically, they can gather:
 
-- **Class and package names** : revealing the framework, library versions, and internal structure of the codebase, which can be matched against known CVEs.
-- **File names and line numbers** : pinpointing exactly where in the source code an error occurred, making targeted attacks easier.
-- **Library versions** : from fully qualified class names (e.g., `org.glassfish.jersey`) an attacker can identify the exact dependency versions in use and look up published vulnerabilities for those versions.
-- **Application logic** : the call stack reveals the flow of execution, which can expose business logic, authentication paths, or data access patterns.
+- **Class and package names**, revealing the framework, library versions, and internal structure of the codebase, which can be matched against known CVEs.
+- **File names and line numbers**, pinpointing exactly where in the source code an error occurred, making targeted attacks easier.
+- **Library versions**, from fully qualified class names (e.g., `org.glassfish.jersey`) an attacker can identify the exact dependency versions in use and look up published vulnerabilities for those versions.
+- **Application logic**, the call stack reveals the flow of execution, which can expose business logic, authentication paths, or data access patterns.
 
 In this implementation, `GlobalExceptionMapper` logs the full stack trace server-side using `java.util.logging.Logger` so developers can debug it, but the client only ever receives a generic message: *"An unexpected server error occurred. Please contact the administrator."* This ensures no internal information leaks through the API.
 
@@ -278,6 +278,6 @@ In this implementation, `GlobalExceptionMapper` logs the full stack trace server
 
 Using a JAX-RS filter that implements `ContainerRequestFilter` and `ContainerResponseFilter` centralises logging in one place. Every request and response passes through the filter automatically, regardless of which resource method handles it.
 
-If logging were added manually inside each resource method, it would need to be duplicated across every class and method. This violates the DRY (Don't Repeat Yourself) principle and creates maintenance problems : if the log format needs to change, every resource class must be updated. It also means any new endpoint added in the future could easily miss logging if the developer forgets to add it.
+If logging were added manually inside each resource method, it would need to be duplicated across every class and method. This violates the DRY (Don't Repeat Yourself) principle and creates maintenance problems, if the log format needs to change, every resource class must be updated. It also means any new endpoint added in the future could easily miss logging if the developer forgets to add it.
 
-Filters implement cross-cutting concerns : behaviour that applies uniformly across the entire API : at the framework level rather than the application level. This makes the codebase cleaner, the logging consistent, and the resource classes focused purely on their business logic.
+Filters implement cross-cutting concerns, behaviour that applies uniformly across the entire API, at the framework level rather than the application level. This makes the codebase cleaner, the logging consistent, and the resource classes focused purely on their business logic.
