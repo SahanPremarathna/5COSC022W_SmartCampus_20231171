@@ -4,6 +4,7 @@ import com.mycompany.cosc022w_smartcampus_20231171.model.ErrorResponse;
 import com.mycompany.cosc022w_smartcampus_20231171.model.Sensor;
 import com.mycompany.cosc022w_smartcampus_20231171.model.SensorReading;
 import com.mycompany.cosc022w_smartcampus_20231171.store.DataStore;
+import java.net.URI;
 import java.util.List;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.GET;
@@ -12,6 +13,7 @@ import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.Produces;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
+import javax.ws.rs.core.UriInfo;
 
 /**
  * Sub-resource handling sensor reading history operations for one sensor.
@@ -22,14 +24,17 @@ public class SensorReadingResource {
 
     private final int sensorId;
     private final DataStore dataStore = DataStore.getInstance();
+    private final UriInfo uriInfo;
 
     /**
      * Creates a sub-resource bound to one parent sensor id.
      *
      * @param sensorId parent sensor identifier
+     * @param uriInfo  uri context passed from parent locator
      */
-    public SensorReadingResource(int sensorId) {
+    public SensorReadingResource(int sensorId, UriInfo uriInfo) {
         this.sensorId = sensorId;
+        this.uriInfo = uriInfo;
     }
 
     /**
@@ -66,7 +71,8 @@ public class SensorReadingResource {
 
         // DataStore enforces MAINTENANCE rule and updates sensor.currentValue.
         SensorReading created = dataStore.addReading(sensorId, request);
-        return Response.status(Response.Status.CREATED).entity(created).build();
+        URI location = uriInfo.getAbsolutePathBuilder().path(String.valueOf(created.getId())).build();
+        return Response.created(location).entity(created).build();
     }
 
     /**

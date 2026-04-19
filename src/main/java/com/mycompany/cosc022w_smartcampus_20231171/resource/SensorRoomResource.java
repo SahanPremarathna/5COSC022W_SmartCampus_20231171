@@ -3,6 +3,7 @@ package com.mycompany.cosc022w_smartcampus_20231171.resource;
 import com.mycompany.cosc022w_smartcampus_20231171.model.ErrorResponse;
 import com.mycompany.cosc022w_smartcampus_20231171.model.Room;
 import com.mycompany.cosc022w_smartcampus_20231171.store.DataStore;
+import java.net.URI;
 import java.util.List;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.DELETE;
@@ -55,7 +56,8 @@ public class SensorRoomResource {
 
         // Persist in shared in-memory store and return created representation.
         Room created = dataStore.createRoom(request);
-        return Response.status(Response.Status.CREATED).entity(created).build();
+        URI location = uriInfo.getAbsolutePathBuilder().path(String.valueOf(created.getId())).build();
+        return Response.created(location).entity(created).build();
     }
 
     /**

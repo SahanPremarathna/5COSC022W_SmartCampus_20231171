@@ -3,6 +3,7 @@ package com.mycompany.cosc022w_smartcampus_20231171.resource;
 import com.mycompany.cosc022w_smartcampus_20231171.model.ErrorResponse;
 import com.mycompany.cosc022w_smartcampus_20231171.model.Sensor;
 import com.mycompany.cosc022w_smartcampus_20231171.store.DataStore;
+import java.net.URI;
 import java.util.List;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.GET;
@@ -45,7 +46,8 @@ public class SensorResource {
 
         // DataStore validates that roomId exists and may throw LinkedResourceNotFoundException.
         Sensor created = dataStore.createSensor(request);
-        return Response.status(Response.Status.CREATED).entity(created).build();
+        URI location = uriInfo.getAbsolutePathBuilder().path(String.valueOf(created.getId())).build();
+        return Response.created(location).entity(created).build();
     }
 
     /**
@@ -72,7 +74,7 @@ public class SensorResource {
         if (sensor == null) {
             throw notFound("Sensor " + sensorId + " not found.");
         }
-        return new SensorReadingResource(sensorId);
+        return new SensorReadingResource(sensorId, uriInfo);
     }
 
     /**

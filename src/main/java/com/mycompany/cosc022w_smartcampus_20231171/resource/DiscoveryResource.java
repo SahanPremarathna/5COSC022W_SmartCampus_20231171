@@ -8,6 +8,7 @@ import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
 import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.Response;
 
 /**
  * Root discovery endpoint exposing API metadata and top-level links.
@@ -22,6 +23,12 @@ public class DiscoveryResource {
      * @return discovery response payload
      */
     @GET
+    @Path("/test/error")
+    public Response triggerError() {
+        throw new RuntimeException("Simulated server fault for demonstration purposes.");
+    }
+
+    @GET
     public DiscoveryResponse discover() {
         // Keep deterministic link ordering for readable output.
         Map<String, String> resources = new LinkedHashMap<String, String>();
@@ -29,7 +36,7 @@ public class DiscoveryResource {
         resources.put("sensors", "/api/v1/sensors");
 
         // Basic contact block for administration/support.
-        AdminContact admin = new AdminContact("Sahan Premarathna", "admin@example.com");
+        AdminContact admin = new AdminContact("Sahan Premarathna", "sahan@email.com");
         return new DiscoveryResponse("v1", admin, resources);
     }
 }
