@@ -100,7 +100,7 @@ On Windows:
 Open a browser or send a GET request to:
 
 ```
-http://localhost:8080/5COSC022W_SmartCampus_20231171-1.0-SNAPSHOT/api/v1
+http://localhost:8080/5COSC022W_SmartCampus_20231171/api/v1
 ```
 
 You should receive a JSON discovery response confirming the API is live.
@@ -114,7 +114,7 @@ You should receive a JSON discovery response confirming the API is live.
 Set the base URL first to keep commands short:
 
 ```bash
-BASE="http://localhost:8080/5COSC022W_SmartCampus_20231171-1.0-SNAPSHOT/api/v1"
+BASE="http://localhost:8080/5COSC022W_SmartCampus_20231171/api/v1"
 ```
 
 ### 1. Discovery endpoint
